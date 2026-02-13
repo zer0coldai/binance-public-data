@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 from datetime import *
 import urllib.request
+from urllib.parse import quote
 from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
 from enums import *
 
@@ -27,7 +28,9 @@ def get_all_symbols(type):
   return list(map(lambda symbol: symbol['symbol'], json.loads(response)['symbols']))
 
 def download_file(base_path, file_name, date_range=None, folder=None):
-  download_path = "{}{}".format(base_path, file_name)
+  encoded_base_path = quote(base_path, safe='/')
+  encoded_file_name = quote(file_name, safe='.-_')
+  download_path = "{}{}".format(encoded_base_path, encoded_file_name)
   if folder:
     base_path = os.path.join(folder, base_path)
   if date_range:
@@ -155,5 +158,4 @@ def get_parser(parser_type):
 
 
   return parser
-
 
