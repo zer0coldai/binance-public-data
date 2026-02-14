@@ -1,6 +1,8 @@
 """Tests for URL encoding behavior in downloader utility."""
 
+import json
 from pathlib import Path
+import urllib.error
 import sys
 from urllib.parse import quote
 
@@ -13,6 +15,12 @@ class _FakeResponse:
     def __init__(self, payload: bytes) -> None:
         self._payload = payload
         self._offset = 0
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
 
     def getheader(self, name: str):
         if name.lower() == "content-length":
@@ -32,8 +40,9 @@ def test_download_file_encodes_url_but_preserves_local_filename(tmp_path, monkey
     file_name = "币安人生USDT-1m-2026-01.zip"
     captured = {}
 
-    def _fake_urlopen(url):
+    def _fake_urlopen(url, timeout=None):
         captured["url"] = url
+        captured["timeout"] = timeout
         return _FakeResponse(b"ok")
 
     monkeypatch.setattr(utility.urllib.request, "urlopen", _fake_urlopen)
@@ -42,4 +51,54 @@ def test_download_file_encodes_url_but_preserves_local_filename(tmp_path, monkey
 
     expected_url = utility.BASE_URL + quote(base_path, safe="/") + quote(file_name, safe=".-_")
     assert captured["url"] == expected_url
+    assert captured["timeout"] is not None
     assert (tmp_path / base_path / file_name).exists()
+
+
+def test_download_file_retries_then_succeeds(tmp_path, monkeypatch) -> None:
+    calls = {"count": 0}
+
+    def _flaky_urlopen(url, timeout=None):
+        calls["count"] += 1
+        if calls["count"] < 3:
+            raise urllib.error.URLError("temporary failure")
+        return _FakeResponse(b"ok")
+
+    monkeypatch.setattr(utility.urllib.request, "urlopen", _flaky_urlopen)
+    monkeypatch.setattr(utility.time_module, "sleep", lambda _: None)
+
+    utility.download_file("data/spot/monthly/klines/BTCUSDT/1m/", "BTCUSDT-1m-2026-01.zip", folder=str(tmp_path))
+
+    assert calls["count"] == 3
+
+
+def test_get_all_symbols_retries_then_succeeds(monkeypatch) -> None:
+    payload = json.dumps({"symbols": [{"symbol": "BTCUSDT"}, {"symbol": "ETHUSDT"}]}).encode("utf-8")
+    calls = {"count": 0}
+
+    class _ExchangeInfoResponse:
+        def __init__(self, body: bytes) -> None:
+            self._body = body
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return self._body
+
+    def _flaky_urlopen(url, timeout=None):
+        calls["count"] += 1
+        if calls["count"] < 2:
+            raise urllib.error.URLError("temporary failure")
+        return _ExchangeInfoResponse(payload)
+
+    monkeypatch.setattr(utility.urllib.request, "urlopen", _flaky_urlopen)
+    monkeypatch.setattr(utility.time_module, "sleep", lambda _: None)
+
+    symbols = utility.get_all_symbols("spot")
+
+    assert symbols == ["BTCUSDT", "ETHUSDT"]
+    assert calls["count"] == 2

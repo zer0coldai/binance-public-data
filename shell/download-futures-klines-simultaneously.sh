@@ -7,6 +7,7 @@ SYMBOLS=(AAVEUSD_PERP ADAUSD_PERP ATOMUSD_PERP AVAXUSD_PERP AXSUSD_PERP BCHUSD_P
 INTERVALS=("1m" "5m" "15m" "30m" "1h" "2h" "4h" "6h" "8h" "12h" "1d" "3d" "1w" "1mo")
 YEARS=("2020" "2021" "2022" "2023" "2024" "2025")
 MONTHS=("01" "02" "03" "04" "05" "06" "07" "08" "09" "10" "11" "12")
+wget_opts="--timeout=20 --read-timeout=20 --tries=3 --waitretry=1"
 
 
 # First we verify if the CM_OR_UM is correct, if not, we exit
@@ -21,9 +22,11 @@ fi
 download_url() {
   url=$1
 
-  response=$(wget --server-response -q ${url} 2>&1 | awk 'NR==1{print $2}')
-  if [ ${response} == '404' ]; then
+  response=$(wget --server-response -q ${wget_opts} ${url} 2>&1 | awk 'NR==1{print $2}')
+  if [ "${response}" == '404' ]; then
     echo "File not exist: ${url}"
+  elif [ -z "${response}" ]; then
+    echo "download failed(timeout/network): ${url}"
   else
     echo "downloaded: ${url}"
   fi

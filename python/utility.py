@@ -1,11 +1,19 @@
 import os, sys, re, shutil
 import json
+import socket
+import time as time_module
 from pathlib import Path
 from datetime import *
 import urllib.request
+import urllib.error
 from urllib.parse import quote
 from argparse import ArgumentParser, RawTextHelpFormatter, ArgumentTypeError
 from enums import *
+
+REQUEST_TIMEOUT_SECONDS = 20
+REQUEST_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1
+DEFAULT_BLOCK_SIZE = 8192
 
 def get_destination_dir(file_url, folder=None):
   store_directory = os.environ.get('STORE_DIRECTORY')
@@ -18,13 +26,34 @@ def get_destination_dir(file_url, folder=None):
 def get_download_url(file_url):
   return "{}{}".format(BASE_URL, file_url)
 
+def urlopen_with_retry(url):
+  for attempt in range(REQUEST_RETRIES):
+    try:
+      return urllib.request.urlopen(url, timeout=REQUEST_TIMEOUT_SECONDS)
+    except urllib.error.HTTPError:
+      # 404 and other HTTP status errors should be handled by callers.
+      raise
+    except (urllib.error.URLError, TimeoutError, socket.timeout) as error:
+      if attempt == REQUEST_RETRIES - 1:
+        raise error
+      wait_seconds = RETRY_BACKOFF_SECONDS * (attempt + 1)
+      print("\nNetwork error for {} (attempt {}/{}): {}. retry in {}s".format(
+        url,
+        attempt + 1,
+        REQUEST_RETRIES,
+        error,
+        wait_seconds,
+      ))
+      time_module.sleep(wait_seconds)
+
 def get_all_symbols(type):
+  exchange_info_url = "https://api.binance.com/api/v3/exchangeInfo"
   if type == 'um':
-    response = urllib.request.urlopen("https://fapi.binance.com/fapi/v1/exchangeInfo").read()
+    exchange_info_url = "https://fapi.binance.com/fapi/v1/exchangeInfo"
   elif type == 'cm':
-    response = urllib.request.urlopen("https://dapi.binance.com/dapi/v1/exchangeInfo").read()
-  else:
-    response = urllib.request.urlopen("https://api.binance.com/api/v3/exchangeInfo").read()
+    exchange_info_url = "https://dapi.binance.com/dapi/v1/exchangeInfo"
+  with urlopen_with_retry(exchange_info_url) as response:
+    response = response.read()
   return list(map(lambda symbol: symbol['symbol'], json.loads(response)['symbols']))
 
 def download_file(base_path, file_name, date_range=None, folder=None):
@@ -49,27 +78,30 @@ def download_file(base_path, file_name, date_range=None, folder=None):
 
   try:
     download_url = get_download_url(download_path)
-    dl_file = urllib.request.urlopen(download_url)
-    length = dl_file.getheader('content-length')
-    if length:
-      length = int(length)
-      blocksize = max(4096,length//100)
+    with urlopen_with_retry(download_url) as dl_file:
+      length = dl_file.getheader('content-length')
+      length = int(length) if length else None
+      blocksize = max(4096, length//100) if length else DEFAULT_BLOCK_SIZE
 
-    with open(save_path, 'wb') as out_file:
-      dl_progress = 0
-      print("\nFile Download: {}".format(save_path))
-      while True:
-        buf = dl_file.read(blocksize)   
-        if not buf:
-          break
-        dl_progress += len(buf)
-        out_file.write(buf)
-        done = int(50 * dl_progress / length)
-        sys.stdout.write("\r[%s%s]" % ('#' * done, '.' * (50-done)) )    
-        sys.stdout.flush()
+      with open(save_path, 'wb') as out_file:
+        dl_progress = 0
+        print("\nFile Download: {}".format(save_path))
+        while True:
+          buf = dl_file.read(blocksize)
+          if not buf:
+            break
+          dl_progress += len(buf)
+          out_file.write(buf)
+          if length:
+            done = int(50 * dl_progress / length)
+            sys.stdout.write("\r[%s%s]" % ('#' * done, '.' * (50-done)) )
+            sys.stdout.flush()
 
   except urllib.error.HTTPError:
     print("\nFile not found: {}".format(download_url))
+    pass
+  except (urllib.error.URLError, TimeoutError, socket.timeout) as error:
+    print("\nFailed to download after retries {}: {}".format(download_url, error))
     pass
 
 def convert_to_date_object(d):
@@ -158,4 +190,3 @@ def get_parser(parser_type):
 
 
   return parser
-
