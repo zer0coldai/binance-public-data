@@ -5,6 +5,7 @@ from pathlib import Path
 import urllib.error
 import sys
 from urllib.parse import quote
+from urllib.error import HTTPError
 
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -102,3 +103,21 @@ def test_get_all_symbols_retries_then_succeeds(monkeypatch) -> None:
 
     assert symbols == ["BTCUSDT", "ETHUSDT"]
     assert calls["count"] == 2
+
+
+def test_download_file_does_not_retry_http_error(tmp_path, monkeypatch) -> None:
+    calls = {"count": 0}
+
+    def _http_404(url, timeout=None):
+        calls["count"] += 1
+        raise HTTPError(url=url, code=404, msg="Not Found", hdrs=None, fp=None)
+
+    sleep_calls = {"count": 0}
+
+    monkeypatch.setattr(utility.urllib.request, "urlopen", _http_404)
+    monkeypatch.setattr(utility.time_module, "sleep", lambda _: sleep_calls.__setitem__("count", sleep_calls["count"] + 1))
+
+    utility.download_file("data/spot/monthly/klines/BTCUSDT/1m/", "BTCUSDT-1m-3026-01.zip", folder=str(tmp_path))
+
+    assert calls["count"] == 1
+    assert sleep_calls["count"] == 0
