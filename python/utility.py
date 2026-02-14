@@ -3,7 +3,7 @@ import json
 import socket
 import time as time_module
 from pathlib import Path
-from datetime import *
+from datetime import date
 import urllib.request
 import urllib.error
 from urllib.parse import quote
