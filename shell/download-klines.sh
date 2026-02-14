@@ -8,15 +8,18 @@ years=("2017" "2018" "2019" "2020" "2021" "2022" "2023" "2024" "2025")
 months=(01 02 03 04 05 06 07 08 09 10 11 12)
 
 baseurl="https://data.binance.vision/data/spot/monthly/klines"
+wget_opts="--timeout=20 --read-timeout=20 --tries=3 --waitretry=1"
 
 for symbol in ${symbols[@]}; do
   for interval in ${intervals[@]}; do
     for year in ${years[@]}; do
       for month in ${months[@]}; do
         url="${baseurl}/${symbol}/${interval}/${symbol}-${interval}-${year}-${month}.zip"
-        response=$(wget --server-response -q ${url} 2>&1 | awk 'NR==1{print $2}')
-        if [ ${response} == '404' ]; then
+        response=$(wget --server-response -q ${wget_opts} ${url} 2>&1 | awk 'NR==1{print $2}')
+        if [ "${response}" == '404' ]; then
           echo "File not exist: ${url}" 
+        elif [ -z "${response}" ]; then
+          echo "download failed(timeout/network): ${url}"
         else
           echo "downloaded: ${url}"
         fi
