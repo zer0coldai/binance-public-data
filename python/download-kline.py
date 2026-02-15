@@ -32,6 +32,8 @@ def download_monthly_klines(trading_type, symbols, num_symbols, intervals, years
   else:
     end_date = convert_to_date_object(end_date)
 
+  # Pre-filter years and months to avoid unnecessary iteration
+  years = [y for y in years if int(y) >= start_date.year and int(y) <= end_date.year]
   print("Found {} symbols".format(num_symbols))
 
   for symbol in symbols:
@@ -71,6 +73,8 @@ def download_daily_klines(trading_type, symbols, num_symbols, intervals, dates, 
 
   #Get valid intervals for daily
   intervals = list(set(intervals) & set(DAILY_INTERVALS))
+  # Pre-filter dates to avoid unnecessary iteration
+  dates = [d for d in dates if convert_to_date_object(d) >= start_date and convert_to_date_object(d) <= end_date]
   print("Found {} symbols".format(num_symbols))
 
   for symbol in symbols:
@@ -105,8 +109,8 @@ if __name__ == "__main__":
     if args.dates:
       dates = args.dates
     else:
-      period = convert_to_date_object(datetime.today().strftime('%Y-%m-%d')) - convert_to_date_object(
-        PERIOD_START_DATE)
+      period_start = args.startDate if args.startDate else PERIOD_START_DATE
+      period = convert_to_date_object(datetime.today().strftime('%Y-%m-%d')) - convert_to_date_object(period_start)
       dates = pd.date_range(end=datetime.today(), periods=period.days + 1).to_pydatetime().tolist()
       dates = [date.strftime("%Y-%m-%d") for date in dates]
       if args.skip_monthly == 0:
