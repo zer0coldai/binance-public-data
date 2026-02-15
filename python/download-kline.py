@@ -42,6 +42,12 @@ def download_monthly_klines(trading_type, symbols, num_symbols, intervals, years
   else:
     end_date = convert_to_date_object(end_date)
 
+  # Exclude current incomplete month (monthly archives only available for completed months)
+  today = date.today()
+  last_complete_month = date(today.year, today.month, 1) - timedelta(days=1)
+  if end_date > last_complete_month:
+    end_date = last_complete_month
+
   # Pre-filter years and months to avoid unnecessary iteration
   years = [y for y in years if int(y) >= start_date.year and int(y) <= end_date.year]
   print("Found {} symbols".format(num_symbols))
