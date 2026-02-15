@@ -33,7 +33,7 @@ def download_monthly_klines(trading_type, symbols, num_symbols, intervals, years
     date_range = start_date + " " + end_date
 
   if not start_date:
-    start_date = START_DATE
+    start_date = convert_to_date_object(TRADING_TYPE_START_DATE.get(trading_type, '2017-01-01'))
   else:
     start_date = convert_to_date_object(start_date)
 
@@ -83,7 +83,7 @@ def download_daily_klines(trading_type, symbols, num_symbols, intervals, dates, 
     date_range = start_date + " " + end_date
 
   if not start_date:
-    start_date = START_DATE
+    start_date = convert_to_date_object(TRADING_TYPE_START_DATE.get(trading_type, '2017-01-01'))
   else:
     start_date = convert_to_date_object(start_date)
 
