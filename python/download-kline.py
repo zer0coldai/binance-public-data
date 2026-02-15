@@ -7,12 +7,22 @@
   e.g. STORE_DIRECTORY=/data/ ./download-kline.py
 
 """
+import os
 import sys
 from datetime import *
 import pandas as pd
 from enums import *
 from utility import download_file, get_all_symbols, get_parser, get_start_end_date_objects, convert_to_date_object, \
-  get_path
+  get_path, get_destination_dir
+
+
+def _get_save_dir(base_path, date_range=None, folder=None):
+  """Compute the save directory matching download_file's path logic."""
+  if folder:
+    base_path = os.path.join(folder, base_path)
+  if date_range:
+    base_path = os.path.join(base_path, date_range.replace(" ", "_"))
+  return get_destination_dir(base_path, folder)
 
 
 def download_monthly_klines(trading_type, symbols, num_symbols, intervals, years, months, start_date, end_date, folder, checksum):
@@ -39,18 +49,29 @@ def download_monthly_klines(trading_type, symbols, num_symbols, intervals, years
   for symbol in symbols:
     print("[{}/{}] - start download monthly {} klines ".format(current+1, num_symbols, symbol))
     for interval in intervals:
+      # Scan existing files once to skip already downloaded months
+      path = get_path(trading_type, "klines", "monthly", symbol, interval)
+      save_dir = _get_save_dir(path, date_range, folder)
+      existing_files = set(os.listdir(save_dir)) if os.path.isdir(save_dir) else set()
+      skipped = 0
+
       for year in years:
         for month in months:
           current_date = convert_to_date_object('{}-{}-01'.format(year, month))
           if current_date >= start_date and current_date <= end_date:
-            path = get_path(trading_type, "klines", "monthly", symbol, interval)
             file_name = "{}-{}-{}-{}.zip".format(symbol.upper(), interval, year, '{:02d}'.format(month))
+            if file_name in existing_files:
+              skipped += 1
+              continue
             download_file(path, file_name, date_range, folder)
 
             if checksum == 1:
-              checksum_path = get_path(trading_type, "klines", "monthly", symbol, interval)
               checksum_file_name = "{}-{}-{}-{}.zip.CHECKSUM".format(symbol.upper(), interval, year, '{:02d}'.format(month))
-              download_file(checksum_path, checksum_file_name, date_range, folder)
+              if checksum_file_name not in existing_files:
+                download_file(path, checksum_file_name, date_range, folder)
+
+      if skipped > 0:
+        print("\n  Skipped {} already downloaded files for {}/{}".format(skipped, symbol, interval))
 
     current += 1
 
@@ -80,17 +101,26 @@ def download_daily_klines(trading_type, symbols, num_symbols, intervals, dates, 
   for symbol in symbols:
     print("[{}/{}] - start download daily {} klines ".format(current+1, num_symbols, symbol))
     for interval in intervals:
-      for date in dates:
-        current_date = convert_to_date_object(date)
-        if current_date >= start_date and current_date <= end_date:
-          path = get_path(trading_type, "klines", "daily", symbol, interval)
-          file_name = "{}-{}-{}.zip".format(symbol.upper(), interval, date)
-          download_file(path, file_name, date_range, folder)
+      # Scan existing files once to skip already downloaded dates
+      path = get_path(trading_type, "klines", "daily", symbol, interval)
+      save_dir = _get_save_dir(path, date_range, folder)
+      existing_files = set(os.listdir(save_dir)) if os.path.isdir(save_dir) else set()
+      skipped = 0
 
-          if checksum == 1:
-            checksum_path = get_path(trading_type, "klines", "daily", symbol, interval)
-            checksum_file_name = "{}-{}-{}.zip.CHECKSUM".format(symbol.upper(), interval, date)
-            download_file(checksum_path, checksum_file_name, date_range, folder)
+      for date in dates:
+        file_name = "{}-{}-{}.zip".format(symbol.upper(), interval, date)
+        if file_name in existing_files:
+          skipped += 1
+          continue
+        download_file(path, file_name, date_range, folder)
+
+        if checksum == 1:
+          checksum_file_name = "{}-{}-{}.zip.CHECKSUM".format(symbol.upper(), interval, date)
+          if checksum_file_name not in existing_files:
+            download_file(path, checksum_file_name, date_range, folder)
+
+      if skipped > 0:
+        print("\n  Skipped {} already downloaded files for {}/{}".format(skipped, symbol, interval))
 
     current += 1
 
