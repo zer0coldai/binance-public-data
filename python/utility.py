@@ -62,7 +62,7 @@ def download_file(base_path, file_name, date_range=None, folder=None):
   download_path = "{}{}".format(encoded_base_path, encoded_file_name)
   if folder:
     base_path = os.path.join(folder, base_path)
-  if date_range:
+  if date_range and "daily/trades/" not in base_path:
     date_range = date_range.replace(" ","_")
     base_path = os.path.join(base_path, date_range)
   save_path = get_destination_dir(os.path.join(base_path, file_name), folder)
