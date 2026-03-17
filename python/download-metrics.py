@@ -75,10 +75,6 @@ def download_daily_metrics(
     checksum,
 ):
     current = 0
-    date_range = None
-
-    if start_date and end_date:
-        date_range = start_date + " " + end_date
 
     if not start_date:
         start_date = START_DATE
@@ -99,11 +95,13 @@ def download_daily_metrics(
             if current_date >= start_date and current_date <= end_date:
                 path = get_path(trading_type, "metrics", "daily", symbol)
                 file_name = "{}-metrics-{}.zip".format(symbol.upper(), date)
-                download_file(path, file_name, date_range, folder)
+                # Keep daily layout consistent with trades:
+                # data/futures/um/daily/metrics/{SYMBOL}/{SYMBOL}-metrics-{YYYY-MM-DD}.zip
+                download_file(path, file_name, None, folder)
 
                 if checksum == 1:
                     checksum_file_name = "{}-metrics-{}.zip.CHECKSUM".format(symbol.upper(), date)
-                    download_file(path, checksum_file_name, date_range, folder)
+                    download_file(path, checksum_file_name, None, folder)
         current += 1
 
 
