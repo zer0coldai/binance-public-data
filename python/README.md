@@ -174,3 +174,20 @@ Running this command will download all available monthly **USD-M Futures** or **
 
 e.g download `BTCDOMUSDT` USD-M funding rate archives with checksum files:
 `python3 download-futures-fundingRate.py -t um -s BTCDOMUSDT -c 1`
+
+### Consolidate funding rate archives
+
+`python3 consolidate-futures-fundingRate.py -t <market_type>` <br/>
+
+Running this command will merge the downloaded monthly funding rate archives into a single csv per symbol.
+
+#### Running with arguments
+
+| Argument        | Explanation | Default | Mandatory |
+| :---------------: | ---------------- | :----------------: | :----------------: |
+| -t              | Market type: **um** (USD-M Futures), **cm** (COIN-M Futures) | - | Yes |
+| -s              | Single **symbol** or multiple **symbols** separated by space | All symbols found on disk | No |
+| -h              | show help messages | - | No |
+
+e.g merge `BTCDOMUSDT` USD-M funding rate archives into one csv:
+`python3 consolidate-futures-fundingRate.py -t um -s BTCDOMUSDT`
