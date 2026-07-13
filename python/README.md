@@ -151,3 +151,26 @@ e.g download ETHUSDT BTCUSDT BNBUSDT USD-M markPriceKlines of 1 week from year 2
 
 e.g download all symbols' daily COIN-M premiumPriceKlines of 1 minute interval from 2021-01-01 to 2021-02-02:
 `python3 download-futures-premiumPriceKlines.py -t cm -skip-monthly 1 -i 1m  -startDate 2021-01-01 -endDate 2021-02-02`
+
+### Download funding rate archives
+
+`python3 download-futures-fundingRate.py -t <market_type>` <br/>
+
+Running this command will download all available monthly **USD-M Futures** or **COIN-M Futures** funding rate archives for the requested symbols.
+
+#### Running with arguments
+
+| Argument        | Explanation | Default | Mandatory |
+| :---------------: | ---------------- | :----------------: | :----------------: |
+| -t              | Market type: **um** (USD-M Futures), **cm** (COIN-M Futures) | - | Yes |
+| -s              | Single **symbol** or multiple **symbols** separated by space | All symbols | No |
+| -y              | Single **year** or multiple **years** separated by space | All available years | No |
+| -m              | Single **month** or multiple **months** separated by space | All available months | No |
+| -startDate      | **Starting date** to download in [YYYY-MM-DD] format | 2020-01-01 | No |
+| -endDate        | **Ending date** to download in [YYYY-MM-DD] format | Current date | No |
+| -folder         | **Directory** to store the downloaded data | Current directory | No |
+| -c              | 1 to download **checksum file** | 0 | No |
+| -h              | show help messages | - | No |
+
+e.g download `BTCDOMUSDT` USD-M funding rate archives with checksum files:
+`python3 download-futures-fundingRate.py -t um -s BTCDOMUSDT -c 1`
